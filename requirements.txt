@@ -1,0 +1,6 @@
+pandas
+requests
+python-dotenv
+azure-search-documents
+openai
+streamlit
