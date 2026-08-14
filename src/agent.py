@@ -1,38 +1,6 @@
-"""
-agent.py
-
-What this file does, in plain English:
-  This is the "brain" of the Sales Opportunity Agent. It connects two things
-  we already built - the Azure AI Search index (13,140 enriched carrier
-  records) and the gpt-5.4-mini chat model - using a pattern called
-  "function calling" (also called "tool use").
-
-  How function calling works, if you're new to it:
-    1. We tell the model about two Python functions it's "allowed to call":
-       search_recent_notices() and get_carrier_details().
-    2. When a user asks a question, the model reads it and decides for
-       itself whether it needs to call one of those functions to answer -
-       e.g. "summarize the last 5 notices" clearly needs
-       search_recent_notices(), while "write an outreach script for ABC
-       Trucking" needs get_carrier_details("ABC Trucking").
-    3. We actually run whichever function it asked for (this is real
-       Python code doing a real search against the index - the model never
-       touches the index directly, it just asks us to look things up).
-    4. We send the function's result back to the model, and it writes the
-       final answer using that real data.
-
-  This is what makes the agent's answers grounded in real records instead of
-  the model just making something up - it can only "know" what the search
-  functions actually return.
-
-Python basics, if you're new to this:
-  - `json.dumps(x)` turns a Python object into a JSON text string (and
-    `json.loads(text)` does the reverse) - needed because the model
-    communicates in JSON text, not raw Python objects.
-  - `**kwargs` in a function call means "unpack this dictionary into
-    keyword arguments" - e.g. if args = {"state": "OH"}, then
-    search_recent_notices(**args) is the same as search_recent_notices(state="OH").
-"""
+"""agent.py - Sales Opportunity Agent. Connects the Azure AI Search index to
+Azure OpenAI via function calling: the model picks a tool, we run the real
+search, and the model answers using only what the tool returns."""
 
 import os
 import json
@@ -55,8 +23,21 @@ CHAT_DEPLOYMENT = "gpt-5.4-mini"
 SYSTEM_PROMPT = """You are the Sales Opportunity Assistant for a trucking sales team.
 
 You have access to FMCSA out-of-service (OOS) carrier records for 2026, via two tools:
-- search_recent_notices: finds the most recent OOS notices, optionally filtered by state.
+- search_recent_notices: finds the most recent OOS notices, optionally filtered
+  by state and/or a date range (date_from/date_to, format YYYY-MM-DD). Also
+  supports pagination via the offset parameter - when the user asks for "the
+  next N" records, call this again with offset set to how many matching
+  records you've already shown them in this conversation, so they get a new
+  batch instead of repeats.
 - get_carrier_details: looks up one specific carrier by name.
+
+IMPORTANT - whenever the user's request names a specific month (with or
+without a year - all data is from 2026, so assume 2026 if no year is given),
+you MUST compute date_from as that month's first day and date_to as its last
+day, and pass BOTH into search_recent_notices. Do not call search_recent_notices
+without those dates and then comment afterward that the results were from a
+different month - always filter proactively. For example, "June carrier
+details" means date_from="2026-06-01", date_to="2026-06-30".
 
 You support exactly two kinds of requests:
 1. Summarizing recent OOS notices (call search_recent_notices).
@@ -78,7 +59,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "search_recent_notices",
-            "description": "Find the most recent out-of-service notices, optionally filtered by US state.",
+            "description": "Find the most recent out-of-service notices, optionally filtered by US state and/or a date range, with pagination support via offset.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -90,6 +71,19 @@ TOOLS = [
                         "type": "integer",
                         "description": "How many recent notices to return.",
                         "default": 5,
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "How many matching records to skip before returning results. Use this to fetch the next page - e.g. if you already showed 5 records, pass offset=5 to get the next batch instead of repeating them.",
+                        "default": 0,
+                    },
+                    "date_from": {
+                        "type": "string",
+                        "description": "Optional start date (format YYYY-MM-DD), inclusive. Use to filter to a specific month or date range, e.g. '2026-06-01' for the start of June 2026.",
+                    },
+                    "date_to": {
+                        "type": "string",
+                        "description": "Optional end date (format YYYY-MM-DD), inclusive. Use to filter to a specific month or date range, e.g. '2026-06-30' for the end of June 2026.",
                     },
                 },
             },
@@ -126,14 +120,24 @@ def get_clients():
     return search_client, openai_client
 
 
-def search_recent_notices(search_client, state=None, limit=5):
-    """Response mode 1: find the most recent OOS notices, newest first."""
-    filter_str = f"phy_state eq '{state}'" if state else None
+def search_recent_notices(search_client, state=None, limit=5, offset=0, date_from=None, date_to=None):
+    """Response mode 1: most recent OOS notices, newest first. Supports
+    state/date-range filtering and offset-based pagination."""
+    filter_parts = []
+    if state:
+        filter_parts.append(f"phy_state eq '{state}'")
+    if date_from:
+        filter_parts.append(f"oos_date ge '{date_from}'")
+    if date_to:
+        filter_parts.append(f"oos_date le '{date_to}'")
+    filter_str = " and ".join(filter_parts) if filter_parts else None
+
     results = search_client.search(
         search_text="*",
         filter=filter_str,
         order_by=["oos_date desc"],
         top=limit,
+        skip=offset,
     )
     return [
         {
@@ -191,11 +195,7 @@ def chat_with_agent(search_client, openai_client, messages):
     message = response.choices[0].message
 
     if message.tool_calls:
-        # The model wants data before it can answer. `message` here is an SDK
-        # object (ChatCompletionMessage), not a plain dict like the rest of
-        # our conversation history - we have to convert it to a dict
-        # ourselves, in the exact shape the API expects, or both Streamlit
-        # (message["role"]) and the next API call will break on it.
+        # Convert SDK object to a plain dict - Streamlit and the next API call need message["role"].
         messages.append(
             {
                 "role": "assistant",
@@ -223,7 +223,6 @@ def chat_with_agent(search_client, openai_client, messages):
                 }
             )
 
-        # Ask again, now that the model has real data to work with.
         follow_up = openai_client.chat.completions.create(
             model=CHAT_DEPLOYMENT,
             messages=messages,
@@ -237,8 +236,7 @@ def chat_with_agent(search_client, openai_client, messages):
 
 
 if __name__ == "__main__":
-    # Quick command-line test, without Streamlit - useful for checking the
-    # agent logic works before wiring up the UI.
+    # Command-line test loop, no Streamlit needed.
     search_client, openai_client = get_clients()
     conversation = [{"role": "system", "content": SYSTEM_PROMPT}]
 

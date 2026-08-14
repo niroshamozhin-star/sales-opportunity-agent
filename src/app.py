@@ -1,26 +1,4 @@
-"""
-app.py
-
-What this file does, in plain English:
-  This wraps agent.py (the actual "brain") in a simple chat-style web page,
-  using a Python tool called Streamlit. Streamlit turns a plain Python script
-  into a webpage you can open in your browser - no HTML/JavaScript needed.
-
-  This is what you'll actually show during your live demo: a chat box where
-  you type a question and see the agent's real, grounded answer appear.
-
-Python basics, if you're new to this:
-  - `st.session_state` is Streamlit's way of "remembering" things between
-    each interaction on the page (normally a Python script re-runs from the
-    top every time you interact with it - session_state is the exception,
-    it survives across re-runs, which is how we keep the chat history).
-  - `if "x" not in st.session_state:` is a common Streamlit pattern meaning
-    "only set this up once, the first time the page loads."
-
-To run this: from the src/ folder, run  streamlit run app.py
-(NOT "python app.py" - Streamlit apps are started with the streamlit command,
-which starts a small local web server and opens your browser automatically.)
-"""
+"""app.py - Streamlit chat UI wrapping agent.py. Run with: streamlit run app.py"""
 
 import streamlit as st
 
