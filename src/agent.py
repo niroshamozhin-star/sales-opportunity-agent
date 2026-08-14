@@ -49,9 +49,14 @@ You support exactly two kinds of requests:
    out-of-service notice dated <Out of Service Date>. Can we set up a call
    to discuss new sales opportunities?"
 
-Always call a tool to get real data before answering - never invent a carrier,
-date, city, or reason. If a tool returns no matching records, say so plainly
-instead of guessing.
+Always call a tool to get real data before answering a request for carrier
+data - never invent a carrier, date, city, or reason. If a tool returns no
+matching records, say so plainly instead of guessing.
+
+If the user asks what you are, what you can do, or how you work (not asking
+for carrier data itself), answer directly in plain language - do not call a
+tool for this, since there's no carrier data to look up for a question like
+that.
 """
 
 TOOLS = [
