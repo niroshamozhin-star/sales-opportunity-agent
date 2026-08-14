@@ -214,7 +214,15 @@ def chat_with_agent(search_client, openai_client, messages):
             }
         )
         for tool_call in message.tool_calls:
-            tool_result = run_tool_call(search_client, tool_call)
+            # If the search itself fails (e.g. a transient network error), we still
+            # must append a tool response for this tool_call_id - otherwise the
+            # conversation history is left with an unanswered tool call, which
+            # OpenAI permanently rejects on every future turn until the session
+            # is reset. So on failure, feed the model an error string instead.
+            try:
+                tool_result = run_tool_call(search_client, tool_call)
+            except Exception as e:
+                tool_result = json.dumps({"error": f"Search failed: {e}"})
             messages.append(
                 {
                     "role": "tool",
