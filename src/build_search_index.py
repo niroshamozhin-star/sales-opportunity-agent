@@ -32,12 +32,17 @@ def build_content_sentence(row):
     )
 
 
-def create_index_if_missing(index_client):
-    """Defines and creates the search index, unless it already exists."""
+def rebuild_index(index_client):
+    """
+    Deletes the index if it already exists, then creates it fresh. This avoids
+    stale/resolved carriers lingering from a previous run - upload_documents()
+    only adds/updates records, it never removes ones missing from the new CSV,
+    so a full delete+recreate is the simple way to keep the index accurate.
+    """
     existing = [idx.name for idx in index_client.list_indexes()]
     if INDEX_NAME in existing:
-        print(f"Index '{INDEX_NAME}' already exists - skipping creation.")
-        return
+        index_client.delete_index(INDEX_NAME)
+        print(f"Deleted existing index '{INDEX_NAME}' to rebuild it fresh.")
 
     fields = [
         SimpleField(name="id", type=SearchFieldDataType.String, key=True),
@@ -61,7 +66,7 @@ def main():
     print(f"Loaded {len(df)} records.")
 
     index_client = SearchIndexClient(endpoint=SEARCH_ENDPOINT, credential=AzureKeyCredential(SEARCH_KEY))
-    create_index_if_missing(index_client)
+    rebuild_index(index_client)
 
     search_client = SearchClient(
         endpoint=SEARCH_ENDPOINT, index_name=INDEX_NAME, credential=AzureKeyCredential(SEARCH_KEY)
