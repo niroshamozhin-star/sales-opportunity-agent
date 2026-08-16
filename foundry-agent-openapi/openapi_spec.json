@@ -1,0 +1,105 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Sales Opportunity Agent - Carrier Search API",
+    "description": "Search FMCSA out-of-service carrier records and look up one carrier by name.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sales-opportunity-agent-api-ghgjasambvgbf5hu.canadacentral-01.azurewebsites.net/api"
+    }
+  ],
+  "paths": {
+    "/search_recent_notices": {
+      "get": {
+        "operationId": "searchRecentNotices",
+        "summary": "Find the most recent OOS notices, optionally filtered by state and/or date range, with pagination.",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Two-letter US state code to filter by, e.g. 'OH'. Omit to search all states."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 5 },
+            "description": "How many recent notices to return."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": { "type": "integer", "default": 0 },
+            "description": "How many matching records to skip, for pagination."
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Optional start date (YYYY-MM-DD), inclusive."
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Optional end date (YYYY-MM-DD), inclusive."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching records.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "security": [{ "functionKey": [] }]
+      }
+    },
+    "/get_carrier_details": {
+      "get": {
+        "operationId": "getCarrierDetails",
+        "summary": "Look up one specific carrier by business name, to generate an outreach script for them.",
+        "parameters": [
+          {
+            "name": "carrier_name",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The business name (or part of it) of the carrier to look up."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching records.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "security": [{ "functionKey": [] }]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "functionKey": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "code"
+      }
+    }
+  }
+}
