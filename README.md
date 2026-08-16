@@ -16,7 +16,7 @@ Both modes are grounded in real, indexed FMCSA data — the model never invents 
 - **Agent**: `src/agent.py` uses OpenAI-style function calling — the model (Azure OpenAI `gpt-5.4-mini`) decides which of two tools to call based on the user's question; the real search runs in Python, and results are handed back to the model to generate the final grounded answer.
 - **Interface**: `src/app.py` is a Streamlit chat UI wrapping the agent.
 
-See `IMPLEMENTATION_PLAN.md` for the full phase-by-phase build process and the decisions made along the way.
+Also included: `foundry-agent-openapi/` - the same agent logic running natively inside Azure AI Foundry's Agent Service, via a custom Azure Function exposed as an OpenAPI tool.
 
 ## Running it locally
 
