@@ -12,11 +12,11 @@ Both modes are grounded in real, indexed FMCSA data — the model never invents 
 ## How it's built
 
 - **Data**: FMCSA Out-of-Service Orders (2026, active, deduped) enriched with city/state via the MCMIS Census API — see `src/fetch_and_enrich_oos_data.py`.
-- **Search**: 13,140 records indexed in Azure AI Search (`src/build_search_index.py`) using keyword/full-text search — a better fit than vector search for this dataset's structured, factual queries.
-- **Agent**: `src/agent.py` uses OpenAI-style function calling — the model (Azure OpenAI `gpt-5.4-mini`) decides which of two tools to call based on the user's question; the real search runs in Python, and results are handed back to the model to generate the final grounded answer.
-- **Interface**: `src/app.py` is a Streamlit chat UI wrapping the agent.
+- **Search**: 12,673 records indexed in Azure AI Search (`src/build_search_index.py`) using keyword/full-text search — a better fit than vector search for this dataset's structured, factual queries.
+- **Agent (primary)**: `foundry-agent-openapi/` — a native Azure AI Foundry Agent that decides which of two tools to call based on the user's question, via a custom Azure Function exposed as an OpenAPI tool. This is the primary implementation, running natively inside Foundry Agent Service.
+- **Agent (secondary)**: `src/agent.py` — the same logic reimplemented as a custom Python agent using OpenAI-style function calling, wrapped by a Streamlit chat UI (`src/app.py`). This is the submitted clickable prototype — a secondary, independently-usable backup.
 
-Also included: `foundry-agent-openapi/` - the same agent logic running natively inside Azure AI Foundry's Agent Service, via a custom Azure Function exposed as an OpenAPI tool.
+Both implementations are grounded in the same Azure AI Search index and produce identical, deterministic results.
 
 ## Running it locally
 
