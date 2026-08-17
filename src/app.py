@@ -20,7 +20,7 @@ search_client, openai_client = st.session_state.clients
 
 # Re-draw the whole conversation so far (skip the hidden system prompt).
 for message in st.session_state.messages:
-    if message["role"] in ("user", "assistant"):
+    if message["role"] in ("user", "assistant") and message.get("content"):
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
