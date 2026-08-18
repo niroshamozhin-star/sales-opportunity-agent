@@ -20,7 +20,12 @@ Both implementations are grounded in the same Azure AI Search index and produce 
 
 ## Running it locally
 
+Create a virtual environment (keeps this project's dependencies isolated from other Python projects on your machine) and install the pinned requirements into it:
+
 ```
+python -m venv venv
+venv\Scripts\activate      # Windows
+source venv/bin/activate   # macOS/Linux
 pip install -r requirements.txt
 ```
 
